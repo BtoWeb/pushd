@@ -9,35 +9,16 @@ class PushServiceAPNS
     constructor: (conf, @logger, tokenResolver) ->
         conf.errorCallback = (errCode, note) =>
             @logger?.error("APNS Error #{errCode}: #{note}")
-
-        # The APN library decided to change the default version of those variables in 1.5.1
-        # Maintain the previous defaults in order not to break backward compat.
-        conf['gateway'] ||= 'gateway.push.apple.com'
-        conf['address'] ||= 'feedback.push.apple.com'
         @driver = new apns.Provider(conf)
 
         @payloadFilter = conf.payloadFilter
         
         @conf = conf
 
-        @feedback = new apns.Feedback(conf)
-        # Handle Apple Feedbacks
-        @feedback.on 'feedback', (feedbackData) =>
-            @logger?.debug("APNS feedback returned #{feedbackData.length} devices")
-            feedbackData.forEach (item) =>
-                console.log("## item.device=" + item.device.toString())
-                tokenResolver 'apns', item.device.toString(), (subscriber) =>
-                    subscriber?.get (info) =>
-                        if info.updated < item.time
-                            @logger?.warn("APNS Automatic unregistration for subscriber #{subscriber.id}")
-                            subscriber.delete()
-
-
     push: (subscriber, subOptions, payload) ->
         subscriber.get (info) =>
             note = new apns.Notification()
-            device = new apns.Device(info.token)
-            device.subscriberId = subscriber.id # used for error logging
+            device = info.token
             if subOptions?.ignore_message isnt true and alert = payload.localizedMessage(info.lang)
                 note.alert = alert
 
