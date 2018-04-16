@@ -1,4 +1,5 @@
 express = require 'express'
+morgan = require('morgan')
 bodyParser = require 'body-parser'
 dgram = require 'dgram'
 zlib = require 'zlib'
@@ -67,7 +68,7 @@ checkUserAndPassword = (username, password) =>
 
 app = express()
 
-app.use(express.logger(':method :url :status')) if settings.server?.access_log
+app.use(morgan(':method :url :status')) if settings.server?.access_log
 
 #if settings.server?.auth? and not settings.server?.acl?
 #    logger.info "use basicAuth "
@@ -77,7 +78,6 @@ app.use(express.logger(':method :url :status')) if settings.server?.access_log
 
 app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }))
 app.use(bodyParser.json({ limit: '1mb' }))
-app.use(app.router)
 
 app.set('views', __dirname + '/views')
 app.set('view engine', 'pug')
