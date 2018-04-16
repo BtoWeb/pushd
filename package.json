@@ -51,7 +51,6 @@
     "wns": "git://github.com/futurice/wns.git#28bfe39a3be8c64f3d72b7c7a5cac77c049b137a"
   },
   "devDependencies": {
-    "coffee-register": "^0.1.3",
     "mocha": "^5.1.0",
     "should": "*"
   },
