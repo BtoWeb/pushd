@@ -201,18 +201,18 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 		req.subscriber.set fields, (edited) ->
 			if not edited
 				logger.error "No subscriber #{req.subscriber.id}"
-			res.send if edited then 204 else 404
+			res.sendStatus if edited then 204 else 404
 
 	# Unregister subscriber
 	app.delete '/subscriber/:subscriber_id', authorize('register'), (req, res) ->
 		req.subscriber.delete (deleted) ->
 			if not deleted
 				logger.error "No subscriber #{req.subscriber.id}"
-			res.send if deleted then 204 else 404
+			res.sendStatus if deleted then 204 else 404
 
 	app.post '/subscriber/:subscriber_id/test', authorize('register'), (req, res) ->
 		testSubscriber(req.subscriber)
-		res.send 201
+		res.sendStatus 201
 
 	# Get subscriber subscriptions
 	app.get '/subscriber/:subscriber_id/subscriptions', authorize('register'), (req, res) ->
@@ -225,7 +225,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				res.json subsAndOptions
 			else
 				logger.error "No subscriber #{req.subscriber.id}"
-				res.send 404
+				res.sendStatus 404
 
 	# Set subscriber subscriptions
 	app.post '/subscriber/:subscriber_id/subscriptions', authorize('register'), (req, res) ->
@@ -246,7 +246,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 		req.subscriber.getSubscriptions (subs) ->
 			if not subs?
 				logger.error "No subscriber #{req.subscriber.id}"
-				res.send 404
+				res.sendStatus 404
 				return
 
 			tasks = []
@@ -277,7 +277,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 			, (result) ->
 				if not result
 					logger.error "Failed to set properties for #{req.subscriber.id}"
-				res.send if result then 204 else 400
+				res.sendStatus if result then 204 else 400
 
 	# Get subscriber subscription options
 	app.get '/subscriber/:subscriber_id/subscriptions/:event_id', authorize('register'), (req, res) ->
@@ -286,7 +286,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				res.json {ignore_message: (options & req.event.OPTION_IGNORE_MESSAGE) isnt 0}
 			else
 				logger.error "No subscriber #{req.subscriber.id}"
-				res.send 404
+				res.sendStatus 404
 
 	# Subscribe a subscriber to an event
 	app.post '/subscriber/:subscriber_id/subscriptions/:event_id', authorize('register'), (req, res) ->
@@ -295,10 +295,10 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 			options |= req.event.OPTION_IGNORE_MESSAGE
 		req.subscriber.addSubscription req.event, options, (added) ->
 			if added? # added is null if subscriber doesn't exist
-				res.send if added then 201 else 204
+				res.sendStatus if added then 201 else 204
 			else
 				logger.error "No subscriber #{req.subscriber.id}"
-				res.send 404
+				res.sendStatus 404
 
 	# Unsubscribe a subscriber from an event
 	app.delete '/subscriber/:subscriber_id/subscriptions/:event_id', authorize('register'), (req, res) ->
@@ -307,7 +307,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				logger.error "No subscriber #{req.subscriber.id}"
 			else if not deleted
 				logger.error "Subscriber #{req.subscriber.id} was not subscribed to #{req.event.name}"
-			res.send if deleted then 204 else 404
+			res.sendStatus if deleted then 204 else 404
 
 	# Event stats
 	app.get '/event/:event_id', authorize('register'), (req, res) ->
@@ -320,22 +320,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 
 	# Publish an event
 	app.post '/event/:event_id', authorize('publish'), (req, res) ->
-		res.send 204
-		logger.info("********************* new event publish ***********************")
-		logger.info("#{JSON.stringify(req.body)}")
-		logger.info("********************* new event publish ***********************")
-
-		message = new Message({
-			sender: req.user
-			eventName: req.params.event_id
-			content: JSON.stringify(req.body)
-			createdAt: new Date()
-		})
-
-		message.save (error) ->
-			if error
-				logger.error "error save event message: #{error} "
-
+		res.sendStatus 204
 		eventPublisher.publish(req.event, req.body)
 
 	# Delete an event
@@ -344,12 +329,12 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 			if not deleted
 				logger.error "No event #{req.event.name}"
 			if deleted
-				res.send 204
+				res.sendStatus 204
 			else
-				res.send 404
+				res.sendStatus 404
 	# Server status
 	app.get '/status', authorize('register'), (req, res) ->
 		if checkStatus()
-			res.send 204
+			res.sendStatus 204
 		else
-			res.send 503
+			res.sendStatus 503

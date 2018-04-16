@@ -52,12 +52,14 @@ exports['gcm'] =
 	key: '{{ GCM_KEY }}'
 {% endif %}
 
-{% if FCM_KEY %}
+{% if FCM_KEY or FCM_KEY_FILE %}
 exports['fcm'] =
 	enabled: yes
 	class: require('./lib/pushservices/fcm').PushServiceFCM
-	key: '{{ FCM_KEY }}'
+	key: {% if FCM_KEY %}'{{ GCM_KEY }}'{% else %}key: require("{{ FCM_KEY_FILE }}"){% endif %}
 {% endif %}
+
+
 
 {% if WNS_ID and WNS_SECRET %}
 exports["wns-toast"] =

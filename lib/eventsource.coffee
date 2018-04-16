@@ -22,11 +22,11 @@ exports.setup = (app, authorize, eventPublisher) ->
 
     app.get '/subscribe', authorize('listen'), (req, res) ->
         unless req.accepts('text/event-stream')
-            res.send 406
+            res.sendStatus 406
             return
 
         unless typeof req.query.events is 'string'
-            res.send 400
+            res.sendStatus 400
             return
 
         eventNames = req.query.events.split ' '

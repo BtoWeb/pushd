@@ -12,7 +12,6 @@ class PushServiceFCM
         subscriber.get (info) =>
             
             note = { notification: {}, data: {}, to: info.token }
-            note.collapseKey = payload.event?.name
             if subOptions?.ignore_message isnt true
                 if title = payload.localizedTitle(info.lang)
                     note.notification.title = title
@@ -30,20 +29,13 @@ class PushServiceFCM
 
             message = {tokens: [info.token], subscribers: [subscriber], note: note}
 
-            #console.log("-------------------------------")
-            #console.log("message=" + JSON.stringify(message.note))
-            #console.log("-------------------------------")
-
             @.send message
 
     send: (message) ->
-
         @driver.send message.note, (err, multicastResult) =>
-            
             if not multicastResult?
                 @logger?.error("FCM Error: empty response")
-            else if 'results' of JSON.parse(multicastResult)                
-                multicastResult = JSON.parse(multicastResult)
+            else if 'results' of multicastResult
                 for result, i in multicastResult.results
                     @.handleResult result, message.subscribers[i]
             else
