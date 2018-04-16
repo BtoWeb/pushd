@@ -3,13 +3,15 @@ Payload = require('./payload').Payload
 logger = require 'winston'
 
 class EventPublisher extends events.EventEmitter
-    constructor: (@pushServices) ->
+    constructor: (pushServices) ->
+        super pushServices
+        @pushServices = pushServices
 
     publish: (event, data, cb) ->
 
         #console.log('##### event publish data =' + JSON.stringify(data))
         #console.log(cb)
-        
+
         try
             payload = new Payload(data)
             payload.event = event
@@ -22,7 +24,7 @@ class EventPublisher extends events.EventEmitter
         @.emit(event.name, event, payload)
 
         event.exists (exists) =>
-            
+
             if not exists
                 logger.verbose "Tried to publish to a non-existing event #{event.name}"
                 cb(0) if cb
@@ -52,7 +54,7 @@ class EventPublisher extends events.EventEmitter
                 # action
                 subscriber.get (info) =>
 
-                    
+
                     if info?.proto?
                         if protoCounts[info.proto]?
                             protoCounts[info.proto] += 1
@@ -65,7 +67,7 @@ class EventPublisher extends events.EventEmitter
                 logger.verbose "Pushed to #{totalSubscribers} subscribers"
                 for proto, count of protoCounts
                     logger.verbose "#{count} #{proto} subscribers"
-    
+
                 if totalSubscribers > 0
                     # update some event' stats
                     event.log =>

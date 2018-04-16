@@ -1,0 +1,118 @@
+exports.server =
+	redis_port: {{ REDIS_PORT | default(6379, false) }}
+	redis_host: '{{ REDIS_HOST | default("localhost", false) }}'
+	{% if REDIS_PASSWORD %}
+	redis_auth: '{{REDIS_PASSWORD}}'
+	{% endif %}
+	{% if REDIS_DB_NUMBER %}
+	redis_db_number: '{{REDIS_DB_NUMBER}}'
+	{% endif %}
+	tcp_port: 8080
+	udp_port: 8080
+	access_log: yes
+	{% if ENABLE_ACL %}
+	acl:
+		# restrict publish access to private networks
+		publish: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', 'fd00::/8']
+	{% endif %}
+	{% if AUTH_USER and AUTH_PASS %}
+	auth:
+	# require HTTP basic authentication, username is 'admin' and
+	# password is 'password'
+	#
+	# HTTP basic authentication overrides IP-based authentication
+	# if both acl and auth are defined.
+	{{AUTH_USER}}:
+		password: '{{AUTH_PASS}}'
+		realms: ['register', 'publish']
+	{% endif %}
+
+exports['event-source'] =
+	enabled: yes
+
+{% if APNS_CERT and APNS_KEY %}
+exports['apns'] =
+	enabled: yes
+	class: require('./lib/pushservices/apns').PushServiceAPNS
+	cert: '{{APNS_CERT}}'
+	key: '{{APNS_KEY}}'
+	cacheLength: 100
+	{% if APNS_FILTER %}
+	# Selects data keys which are allowed to be sent with the notification
+	# Keep in mind that APNS limits notification payload size to 256 bytes
+	payloadFilter: {{APNS_FILTER|safe}}
+	{% endif %}
+	{% if APNS_DEV == 'true' %}
+	gateway: 'gateway.sandbox.push.apple.com'
+	address: 'feedback.sandbox.push.apple.com'
+	{% else %}
+	gateway: 'gateway.push.apple.com'
+	address: 'feedback.push.apple.com'
+	{% endif %}
+{% endif %}
+
+{% if GCM_KEY %}
+exports['gcm'] =
+	enabled: yes
+	class: require('./lib/pushservices/gcm').PushServiceGCM
+	key: '{{ GCM_KEY }}'
+{% endif %}
+
+{% if FCM_KEY %}
+exports['fcm'] =
+	enabled: yes
+	class: require('./lib/pushservices/fcm').PushServiceFCM
+	key: '{{ FCM_KEY }}'
+{% endif %}
+
+{% if WNS_ID and WNS_SECRET %}
+exports["wns-toast"] =
+	enabled: yes
+	client_id: 'ms-app://{{WNS_ID}}'
+	client_secret: '{{WNS_SECRET}}'
+	class: require('./lib/pushservices/wns').PushServiceWNS
+	type: 'toast'
+	# Any parameters used here must be present in each push event.
+	launchTemplate: '/Page.xaml?{{WNS_QUERY_STRING}}'
+{% endif %}
+
+exports['http'] =
+	enabled: yes
+	class: require('./lib/pushservices/http').PushServiceHTTP
+
+exports['mpns-toast'] =
+	enabled: yes
+	class: require('./lib/pushservices/mpns').PushServiceMPNS
+	type: 'toast'
+	paramTemplate: '/Page.xaml?object=${data.object_id}'
+
+exports['mpns-tile'] =
+	enabled: yes
+	class: require('./lib/pushservices/mpns').PushServiceMPNS
+	type: 'tile'
+	# Mapping defines where - in the payload - to get the value of each required properties
+	tileMapping:
+	# Used for WP7.5+ to push to secondary tiles
+	# id: "/SecondaryTile.xaml?DefaultTitle=${event.name}"
+	# count: "${data.count}"
+	title: "${data.title}"
+	backgroundImage: "${data.background_image_url}"
+	backBackgroundImage: "#005e8a"
+	backTitle: "${data.back_title}"
+	backContent: "${data.message}"
+	# param for WP8 flip tile (sent when subscriber declare a minimum OS version of 8.0)
+	smallBackgroundImage: "${data.small_background_image_url}"
+	wideBackgroundImage: "${data.wide_background_image_url}"
+	wideBackContent: "${data.message}"
+	wideBackBackgroundImage: "#005e8a"
+
+exports['mpns-raw'] =
+	enabled: yes
+	class: require('./lib/pushservices/mpns').PushServiceMPNS
+	type: 'raw'
+
+exports['logging'] = [
+	transport: 'Console'
+	options:
+		level: '{{ PUSHD_LOGGING_LEVEL  | default("silly", false)}}'
+]

@@ -80,7 +80,7 @@ app.use(bodyParser.json({ limit: '1mb' }))
 app.use(app.router)
 
 app.set('views', __dirname + '/views')
-app.set('view engine', 'jade')
+app.set('view engine', 'pug')
 app.use(express.static(__dirname + '/public'))
 
 
