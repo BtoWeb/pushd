@@ -1,12 +1,8 @@
 exports.server =
 	redis_port: {{ REDIS_PORT | default(6379, false) }}
 	redis_host: '{{ REDIS_HOST | default("localhost", false) }}'
-	{% if REDIS_PASSWORD %}
-	redis_auth: '{{REDIS_PASSWORD}}'
-	{% endif %}
-	{% if REDIS_DB_NUMBER %}
-	redis_db_number: '{{REDIS_DB_NUMBER}}'
-	{% endif %}
+	{% if REDIS_PASSWORD %}redis_auth: '{{REDIS_PASSWORD}}'{% endif %}
+	{% if REDIS_DB_NUMBER %}redis_db_number: '{{REDIS_DB_NUMBER}}'{% endif %}
 	tcp_port: 8080
 	udp_port: 8080
 	access_log: yes
@@ -92,19 +88,19 @@ exports['mpns-tile'] =
 	type: 'tile'
 	# Mapping defines where - in the payload - to get the value of each required properties
 	tileMapping:
-	# Used for WP7.5+ to push to secondary tiles
-	# id: "/SecondaryTile.xaml?DefaultTitle=${event.name}"
-	# count: "${data.count}"
-	title: "${data.title}"
-	backgroundImage: "${data.background_image_url}"
-	backBackgroundImage: "#005e8a"
-	backTitle: "${data.back_title}"
-	backContent: "${data.message}"
-	# param for WP8 flip tile (sent when subscriber declare a minimum OS version of 8.0)
-	smallBackgroundImage: "${data.small_background_image_url}"
-	wideBackgroundImage: "${data.wide_background_image_url}"
-	wideBackContent: "${data.message}"
-	wideBackBackgroundImage: "#005e8a"
+		# Used for WP7.5+ to push to secondary tiles
+		# id: "/SecondaryTile.xaml?DefaultTitle=${event.name}"
+		# count: "${data.count}"
+		title: "${data.title}"
+		backgroundImage: "${data.background_image_url}"
+		backBackgroundImage: "#005e8a"
+		backTitle: "${data.back_title}"
+		backContent: "${data.message}"
+		# param for WP8 flip tile (sent when subscriber declare a minimum OS version of 8.0)
+		smallBackgroundImage: "${data.small_background_image_url}"
+		wideBackgroundImage: "${data.wide_background_image_url}"
+		wideBackContent: "${data.message}"
+		wideBackBackgroundImage: "#005e8a"
 
 exports['mpns-raw'] =
 	enabled: yes
