@@ -18,9 +18,9 @@ exports.server =
 	#
 	# HTTP basic authentication overrides IP-based authentication
 	# if both acl and auth are defined.
-	{{AUTH_USER}}:
-		password: '{{AUTH_PASS}}'
-		realms: ['register', 'publish']
+		{{AUTH_USER}}:
+			password: '{{AUTH_PASS}}'
+			realms: ['register', 'publish']
 	{% endif %}
 
 exports['event-source'] =
