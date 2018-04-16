@@ -6,7 +6,6 @@ eventModule = require './event'
 Subscriber = require('./subscriber').Subscriber
 fs = require('fs');
 
-AppConfig = settings.AppConfig
 Message = settings.Message
 
 filterFields = (params) ->
@@ -15,12 +14,12 @@ filterFields = (params) ->
 	return fields
 
 # appId, appDebug, os, appHash, appUsername
-exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher, checkStatus) ->    
-	
+exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize, testSubscriber, eventPublisher, checkStatus) ->
+
 	authorize ?= (realm) ->
 
 	app.post '/apps/register', authorize('anonymous'), (req, res) ->
-		
+
 		#logger.info("======================================")
 		#logger.info("============== body = #{JSON.stringify(req.body)}")
 		#logger.info("======================================")
@@ -39,16 +38,16 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 		apn_name_general = "nenhum"
 		apn_name_mobilemind = "nenhum"
 		app_type = req.body.os || 'ios'
-		channels = ""                 
+		channels = ""
 		channels_default = configs.apps.defaults_channels
 		deviceId = req.body.deviceId || ""
 
 		if !appUserEmail || appUserEmail.trim().length == 0
-			res.json error: "user name is required", 500
+			res.status 500.json error: "user name is required"
 			return
 
 		if !appUserName || appUserName.trim().length == 0
-			res.json error: "user name is required", 500
+			res.status 500.json error: "user name is required"
 			return
 
 		server_name_sufix = undefined
@@ -59,23 +58,23 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				server_name_sufix = it.server_name
 				channels_sufix = it.channels
 
-		 
+
 		if !server_name_sufix
-			res.json error: "server name not found to appId #{appid}", 500
+			res.status 500.json error: "server name not found to appId #{appid}"
 			return
 
 		if !channels_sufix
-			res.json error: "channels not found to appId #{appid}", 500
+			res.status 500.json error: "channels not found to appId #{appid}"
 			return
 
 
-		if appDebug            
+		if appDebug
 			for sufix in channels_sufix
 				channels += "#{sufix}-dev,"
 
 			for channel in channels_default
 				channels += "#{channel}-dev,"
-		else            
+		else
 			for sufix in channels_sufix
 				channels += "#{sufix},"
 
@@ -89,7 +88,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 			if appDebug
 				server_name = "apns-#{server_name_sufix}-dev"
 			else
-				server_name = "apns-#{server_name_sufix}"        
+				server_name = "apns-#{server_name_sufix}"
 
 		else if app_type == 'android'
 
@@ -102,7 +101,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				server_name = "#{proto}-#{server_name_sufix}"
 
 		data = {
-			server_name: server_name,                        
+			server_name: server_name,
 			subscrible_channels: channels,
 			app_id: appId,
 			app_hash: appHash,
@@ -119,241 +118,19 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 
 		queryArgs = {}
 
-		if data.deviceId && data.deviceId.trim().length > 0			
+		if data.deviceId && data.deviceId.trim().length > 0
 			queryArgs = { app_debug: appDebug, deviceId: data.deviceId, app_id: appId }
 		else
 			queryArgs = { app_hash: data.app_hash, app_debug: appDebug, app_id: appId  }
 
-		logger.info("*************** find by app config")
-		logger.info(JSON.stringify(queryArgs))
-		logger.info("*************** find by app config")
-
-		AppConfig.findOne queryArgs, (err, appConfig) ->					
-
-			if err
-				res.json error: err.message, 500
-				return
-
-			if appConfig
-
-				subscriber_update_func = (do_subscription) ->
-					AppConfig.update {_id: appConfig._id, app_debug: appDebug }, data, (err, numAffected) ->
-						if err							
-							res.json error: err.message, 500
-						else
-							logger.info("** update config sucesso = #{numAffected}")
-							
-							if !appConfig.subscrible_id || appConfig.subscrible_id == "" || do_subscription
-								logger.info("** subscription need.. go to on_subscribe")
-								AppConfig.findOne { _id: appConfig._id }, (err, appConfig) ->
-									on_subscribe(appConfig, req, res)
-							else							
-								logger.info("** subscrible_id already exists")
-								res.json status: 200 
-				
-				if appConfig.app_hash != data.app_hash
-					logger.info("** subscriber #{appConfig.subscrible_id} with different hash ")
-					# gera novo subscriber_id para novo hash
-
-					subscriber = new Subscriber(redis, appConfig.subscrible_id)
-					subscriber.get (subscriber_found) ->
-
-						if subscriber_found
-
-							logger.info("** subscriber found id #{subscriber.id}")
-					
-							subscriber.delete (deleted) ->
-								logger.info("** delete subscriber #{appConfig.subscrible_id}. status #{deleted}")
-								if deleted
-									subscriber_update_func(true)
-						else
-							# gera novo subscriber_id para nao existente
-							logger.info("** subscriber #{appConfig.subscrible_id} not found")
-							subscriber_update_func(true)
-				
-				else
-					# atualiza informações sem gerar novo subscriber_id
-					subscriber_update_func()				
-
-			else
-				data.subscrible_id = ""
-				appConfig = new AppConfig(data)
-				appConfig.createdAt = new Date()
-				appConfig.updatedAt = new Date()
-				appConfig.save (err)-> # create new app client
-					if err
-						res.json error: err.message, 500
-					else
-						logger.info("** save new app config sucesso")
-						on_subscribe(appConfig, req, res)
-
-
-	on_subscribe = (appConfig, req, res, callback) ->
-
-		body = {
-			proto: appConfig.server_name
-			token: appConfig.app_hash
-			lang: "fr"
-			badge: 0
-			category: "show"
-			contentAvailable: true                            
-		}  
-
-		if !callback
-			callback = (j) ->
-				res.json(j)
-
-		# create app subscriber
-		subscribers body, res, (subscriber) ->
-
-			if !subscriber
-				callback status: 500, message: 'subscriber not created'
-				return
-
-			logger.info("subscriber created id #{subscriber.id}")
-
-			AppConfig.update {_id: appConfig._id}, {subscrible_id: subscriber.id}, (erre, numAffected) ->
-				if erre
-					logger.error("error on update subscriber to set id: #{body}")
-					callback status: 301, message: "error on update subscriber to set id"
-				else
-					callback status: 200
-			
-			events = appConfig.subscrible_channels.split(",")
-
-			for eventName in events
-				
-				eventName = eventName.trim()
-				if eventName == ""
-					continue
-
-				logger.info("register subscriber #{subscriber.id} on event #{eventName}")
-
-				event = new eventModule.Event(redis, eventName)
-
-				# create subscriber subscription
-				subscriber.addSubscription event, 0, (added) ->
-					if added? # added is null if subscriber doesn't exist
-						if added    
-							logger.info "subscription event #{eventName} created to subscriber #{subscriber.id}"
-						else
-							logger.error "subscription event #{eventName} not created to subscriber #{subscriber.id}"
-					else
-						logger.error "subscription event #{eventName} not created to subscriber #{subscriber.id}"
-
 	app.get '/apps/index', authorize('admin'), (req, res) ->
 		res.render('index', {})
 
-	app.get '/apps/register/all', authorize('admin'), (req, res) ->
-
-		for_each = (idx, list, callback, done) ->
-			if idx >= list.length 
-				done()
-			else
-				callback(list[idx])
-
-		AppConfig.find (err, items) ->
-			if err
-				res.json error: err
-			else
-				idx = 0
-
-				messages = []
-
-				done = () ->
-					res.json({
-						count: items.length
-						messages: messages
-					})
-
-				callback = (appConfig) ->
-					on_subscribe appConfig, req, res, (message) ->
-						
-						message.server_name = appConfig.server_name
-						message.subscrible_channels = appConfig.subscrible_channels
-						message.app_id = appConfig.app_id
-						message.app_user_name = appConfig.app_user_name
-						message.app_user_email = appConfig.app_user_email
-						message.app_debug = appConfig.app_debug
-						message.subscriber_id = appConfig.subscrible_id
-
-						messages.push message
-
-						for_each idx++, items, callback, done
-
-				for_each idx++, items, callback, done
-				
-	app.get '/apps/show/all', authorize('admin'), (req, res) ->
-
-		AppConfig.find (err, items) ->
-			if err
-				res.json error: err
-			else
-				messages = []
-
-				for appConfig in items
-					message = {}
-					message.server_name = appConfig.server_name
-					message.subscrible_channels = appConfig.subscrible_channels
-					message.app_id = appConfig.app_id
-					message.app_user_name = appConfig.app_user_name
-					message.app_user_email = appConfig.app_user_email
-					message.app_debug = appConfig.app_debug
-					message.subscriber_id = appConfig.subscrible_id
-					messages.push message
-
-				res.json(messages)                    
-
-	app.get '/apps/users', (req, res) ->    
-
-		AppConfig.find (err, items) ->
-			if err
-				res.json error: err
-			else
-				list = []
-				for it in items
-					list.push({
-						server_name: it.server_name,
-						
-						subscrible_id: it.subscrible_id,
-						subscriber_id: it.subscrible_id,
-						
-						subscrible_channels: it.subscrible_channels,
-
-						app_id: it.app_id,
-						app_hash: it.app_hash,
-						app_user_email: it.app_user_email,
-						app_debug: it.app_debug,
-						app_user_name: it.app_user_name
-
-					})
-				res.render('users', {items: list})
-		
-	app.get '/apps/remove/:subscriber_id', authorize('admin'), (req, res) ->    
+	app.get '/apps/remove/:subscriber_id', authorize('admin'), (req, res) ->
 
 		subscriber_deleted = false
-		mongo_deleted = false
 
 		logger.info("trying remove subscriber #{req.params.subscriber_id}")
-		
-		subscriber_remove_func = () ->
-			AppConfig.findOne { 'subscrible_id': req.params.subscriber_id }, (err, it) ->
-				if err
-					res.json error: err
-				else                                    
-					if it
-						AppConfig.remove {_id: it._id}, (errr) ->
-							if errr
-								logger.info("remove subscriber error: #{errr}")
-								res.json error: errr.message, 500								
-							else
-								mongo_deleted = true
-								res.json 'redis-deleted': subscriber_deleted, 'mongo-deleted': mongo_deleted            
-					else
-						logger.error "No subscriber #{req.params.subscriber_id} found to mongo remove"
-						res.json 'redis-deleted': subscriber_deleted, 'mongo-deleted': mongo_deleted
-
-
 		req.subscriber.get (sub) ->
 
 			if sub
@@ -364,115 +141,16 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 					else
 						subscriber_deleted = true
 
-					subscriber_remove_func()
-
 			else
 				logger.error "No subscriber #{req.subscriber.id} found to redis remove"
-				subscriber_remove_func()
-																							 
-	app.get '/apps/message', authorize('admin'), (req, res) ->
-		
-		channels = []
-
-		AppConfig.find (err, items) ->
-			if err
-				res.json error: err
-				return
-
-			for it in items
-				cls = it.subscrible_channels.split(',')
-				for c in cls
-					c = c.trim()
-					if c and c not in channels
-						channels.push(c)
-
-			res.render('message', {channels: channels})
-
-	app.get '/apps/users-by-channel', authorize('publish'), (req, res) ->
-				
-		channel = req.query.channel
-
-		if !channel
-			res.json error: "channels param is required", 500
-			return
-
-		AppConfig.find({subscrible_channels: {$regex : ".*#{channel},.*"} }).exec (err, items) ->
-			
-			if err
-				res.json error: err
-				return
-			
-			users = []
-			accounts = {}
-
-			for it in items            
-				
-				if !accounts[it.app_user_email]
-					accounts[it.app_user_email] = []
-
-				user = {                        
-					subscrible_id: it.subscrible_id
-					subscriber_id: it.subscrible_id
-					name: it.app_user_name
-					email: it.app_user_email
-					production: !it.app_debug
-					ios: it.server_name.indexOf('apns-') > -1
-					android: it.server_name.indexOf('gcm-') > -1 || it.server_name.indexOf('fcm-') > -1
-					deviceId: it.deviceId
-				}
-
-				if it.createdAt
-					user.createdAt = it.createdAt.toISOString().slice(0, 10)
-
-				if it.updatedAt
-					user.updatedAt = it.updatedAt.toISOString().slice(0, 10)
-
-				accounts[it.app_user_email].push(user)
-
-			res.json(accounts)
 
 	app.get '/apps/:channel', authorize('publish'), (req, res) ->
-				
+
 		channel = req.params.channel
 
 		if !channel || channel.trim().length == 0
-			res.json error: "channels param is required", 500
+			res.status(500).json error: "channels param is required"
 			return
-			
-		AppConfig.find({subscrible_channels: {$regex : ".*#{channel},.*"} }).exec (err, items) ->
-			if err
-				res.json error: err
-				return
-			
-			users = []
-			accounts = {}
-
-			for it in items            
-				
-				if !accounts[it.app_user_email]
-					accounts[it.app_user_email] = []
-
-				user = {                        
-					subscrible_id: it.subscrible_id
-					subscriber_id: it.subscrible_id
-					name: it.app_user_name
-					email: it.app_user_email
-					production: !it.app_debug
-					ios: it.server_name.indexOf('apns-') > -1
-					android: it.server_name.indexOf('gcm-') > -1 || it.server_name.indexOf('fcm-') > -1
-					deviceId: it.deviceId
-				}
-
-				if it.createdAt
-					user.createdAt = it.createdAt.toISOString().slice(0, 10)
-
-				if it.updatedAt
-					user.updatedAt = it.updatedAt.toISOString().slice(0, 10)
-
-				accounts[it.app_user_email].push(user)
-
-
-			res.json(accounts)
 
 	# subscriber registration
 
@@ -492,8 +170,8 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 						end(subscriber)
 						return
 
-					res.header 'Location', "/subscriber/#{subscriber.id}"                    
-					res.json {}, if created then 201 else 200
+					res.header 'Location', "/subscriber/#{subscriber.id}"
+					res.status((if created then 201 else 200)).json {}
 		catch error
 
 			logger.error "Creating subscriber failed: #{error.message}"
@@ -502,7 +180,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				end()
 				return
 
-			res.json error: error.message, 400
+			res.status(400).json error: error.message
 
 	app.post '/subscribers', authorize('register'), (req, res) ->
 		subscribers(req.body, res)
@@ -514,7 +192,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				logger.error "No subscriber #{req.subscriber.id}"
 			else
 				logger.verbose "Subscriber #{req.subscriber.id} info: " + JSON.stringify(fields)
-			res.json fields, if fields? then 200 else 404
+			res.status((if fields? then 200 else 404)).json fields
 
 	# Edit subscriber info
 	app.post '/subscriber/:subscriber_id', authorize('register'), (req, res) ->
@@ -562,7 +240,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				subsToAdd[event.name] = event: event, options: options
 			catch error
 				logger.error "Failed to set subscriptions for #{req.subscriber.id}: #{error.message}"
-				res.json error: error.message, 400
+				res.status(400).json error: error.message
 				return
 
 		req.subscriber.getSubscriptions (subs) ->
@@ -638,7 +316,7 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 				logger.error "No event #{req.event.name}"
 			else
 				logger.verbose "Event #{req.event.name} info: " + JSON.stringify info
-			res.json info, if info? then 200 else 404
+			res.status((if info? then 200 else 404)).json info
 
 	# Publish an event
 	app.post '/event/:event_id', authorize('publish'), (req, res) ->
@@ -675,4 +353,3 @@ exports.setupRestApi = (redis, app, createSubscriber, getEventFromId, authorize,
 			res.send 204
 		else
 			res.send 503
-	

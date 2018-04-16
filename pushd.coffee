@@ -92,7 +92,7 @@ app.param 'subscriber_id', (req, res, next, id) ->
         #delete req.params.subscriber_id
         next()
     catch error
-        res.json error: error.message, 400
+        res.status(400).json error: error.message
 
 getEventFromId = (id) ->
     return new Event(redis, id)
@@ -109,7 +109,7 @@ app.param 'event_id', (req, res, next, id) ->
         #delete req.params.event_id
         next()
     catch error
-        res.json error: error.message, 400
+        res.status(400).json error: error.message
 
 authorize = (realm) ->
 
@@ -139,7 +139,7 @@ authorize = (realm) ->
 
             if !checkUserAndPassword(username, password)
                 logger.error "Bad Credentials, username: #{username},  host: #{req.headers.host}"
-                res.json error: 'Unauthorized', 403
+                res.status(403).json error: 'Unauthorized'
                 return
 
             req.user = username
@@ -150,13 +150,13 @@ authorize = (realm) ->
             if not req.user?
                 logger.error "User not authenticated"
                 logger.error "host: #{req.headers.host}"
-                res.json error: 'Unauthorized', 403
+                res.status(403).json error: 'Unauthorized'
                 return
 
             allowedRealms = settings.server.auth[req.user]?.realms or []
             if realm not in allowedRealms
                 logger.error "No access to #{realm} for #{req.user}, allowed: #{allowedRealms}, host: #{req.headers.host}"
-                res.json error: 'Unauthorized', 403
+                res.status(403).json error: 'Unauthorized'
                 return
 
             logger.verbose "autentication ok"
@@ -172,7 +172,7 @@ authorize = (realm) ->
                     if network.contains(remoteAddr)
                         next()
                         return
-            res.json error: 'Unauthorized', 403
+            res.status(403).json error: 'Unauthorized'
     else
         return (req, res, next) -> next()
 
