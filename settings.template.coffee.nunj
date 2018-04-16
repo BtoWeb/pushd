@@ -39,11 +39,9 @@ exports['apns'] =
 	payloadFilter: {{APNS_FILTER|safe}}
 	{% endif %}
 	{% if APNS_DEV == 'true' %}
-	gateway: 'gateway.sandbox.push.apple.com'
-	address: 'feedback.sandbox.push.apple.com'
+	production: false
 	{% else %}
-	gateway: 'gateway.push.apple.com'
-	address: 'feedback.push.apple.com'
+	production: true
 	{% endif %}
 {% endif %}
 

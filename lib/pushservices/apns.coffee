@@ -14,7 +14,7 @@ class PushServiceAPNS
         # Maintain the previous defaults in order not to break backward compat.
         conf['gateway'] ||= 'gateway.push.apple.com'
         conf['address'] ||= 'feedback.push.apple.com'
-        @driver = new apns.Connection(conf)
+        @driver = new apns.Provider(conf)
 
         @payloadFilter = conf.payloadFilter
         
@@ -63,7 +63,7 @@ class PushServiceAPNS
                     note.payload[key] = val if key in @payloadFilter
             else
                 note.payload = payload.data
-            @driver.pushNotification note, device
+            @driver.send note, device
             # On iOS we have to maintain the badge counter on the server
             if payload.incrementBadge
                 subscriber.incr 'badge'
