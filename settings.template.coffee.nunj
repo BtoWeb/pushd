@@ -56,7 +56,7 @@ exports['gcm'] =
 exports['fcm'] =
 	enabled: yes
 	class: require('./lib/pushservices/fcm').PushServiceFCM
-	key: {% if FCM_KEY %}'{{ GCM_KEY }}'{% else %}key: require("{{ FCM_KEY_FILE }}"){% endif %}
+	key: {% if FCM_KEY %}'{{ GCM_KEY }}'{% else %}require("{{ FCM_KEY_FILE }}"){% endif %}
 {% endif %}
 
 
